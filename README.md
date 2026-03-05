@@ -14,7 +14,7 @@
 # 订阅
 
 ```
-https://github.com/gf4488026/uzVideo-extensions/releases/download/uzVideo-Extensions-main/uzAio.zip
+https://github.com/guo4488026/uzVideo-extensions/releases/download/uzVideo-Extensions-main/uzAio.zip
 ```
 
 # 添加方式
