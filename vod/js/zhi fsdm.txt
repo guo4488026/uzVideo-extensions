@@ -1,6 +1,7 @@
 //@name: 番薯动漫APP
 //@version:1
 //@remark:番薯动漫源，支持AES加密
+//@webSite:https://new.app.bytegooty.com
 //@order: D1
 
 const appConfig = {
