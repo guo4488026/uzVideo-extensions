@@ -1,0 +1,485 @@
+//@name: 番薯动漫APP
+//@version:1
+//@remark:番薯动漫源，支持AES加密
+//@order: D1
+
+const appConfig = {
+    _webSite: 'https://new.app.bytegooty.com',
+    get webSite() {
+        return this._webSite
+    },
+    set webSite(value) {
+        this._webSite = value
+    },
+    _uzTag: '',
+    get uzTag() {
+        return this._uzTag
+    },
+    set uzTag(value) {
+        this._uzTag = value
+    },
+    headers: {
+        "Accept": "application/json, text/plain, */*",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) cyc-desktop/1.0.8 Chrome/128.0.6613.36 Electron/32.0.1 Safari/537.36"
+    },
+    // AES加密密钥和IV
+    cryptoKey: 'N4yj7l7xKxHF4*gz',
+    cryptoIv: 'N4yj7l7xKxHF4*gz'
+}
+
+/**
+ * AES解密
+ * @param {string} word - 加密的数据
+ * @returns {string} - 解密后的字符串
+ */
+function Decrypt(word) {
+    const key = Crypto.enc.Utf8.parse(appConfig.cryptoKey)
+    const iv = Crypto.enc.Utf8.parse(appConfig.cryptoIv)
+    
+    let decrypt = Crypto.AES.decrypt(word, key, {
+        iv: iv,
+        mode: Crypto.mode.CBC,
+        padding: Crypto.pad.Pkcs7,
+    })
+    let decryptedStr = decrypt.toString(Crypto.enc.Utf8)
+    return decryptedStr.toString()
+}
+
+/**
+ * AES加密
+ * @param {string} word - 需要加密的数据
+ * @returns {string} - 加密后的base64字符串
+ */
+function Encrypt(word) {
+    const key = Crypto.enc.Utf8.parse(appConfig.cryptoKey)
+    const iv = Crypto.enc.Utf8.parse(appConfig.cryptoIv)
+    
+    let encrypt = Crypto.AES.encrypt(word, key, {
+        iv: iv,
+        mode: Crypto.mode.CBC,
+        padding: Crypto.pad.Pkcs7,
+    })
+    let encryptedStr = encrypt.toString(Crypto.enc.base64)
+    return encryptedStr.toString()
+}
+
+/**
+ * 异步获取分类列表的方法。
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoClassList())>}
+ */
+async function getClassList(args) {
+    var backData = new RepVideoClassList()
+    try {
+        appConfig.webSite = UZUtils.removeTrailingSlash(args.url || appConfig.webSite)
+        
+        let homeUrl = `${appConfig.webSite}/api.php/getappapi.index/initV119`
+        
+        let response = await req(homeUrl, {
+            method: 'POST',
+            headers: appConfig.headers
+        })
+        
+
+        // 解析响应
+        let resData = typeof response.data === 'string' ? JSON.parse(response.data) : response.data
+        let decrypted = Decrypt(resData.data)
+        let json = JSON.parse(decrypted)
+        
+        let classes = []
+        let typeList = json.type_list || []
+        
+        for (let i = 0; i < typeList.length; i++) {
+            let item = typeList[i]
+            if (item.filter_type_list) {
+                let videoClass = new VideoClass()
+                videoClass.type_id = String(item.type_id)
+                videoClass.type_name = item.type_name
+                videoClass.hasSubclass = true  // 有过滤条件，标记为有子类
+                classes.push(videoClass)
+            }
+        }
+        
+        backData.data = classes
+        
+    } catch (error) {
+        backData.error = '获取分类失败: ' + error.toString()
+        UZUtils.debugLog(backData.error)
+    }
+    return JSON.stringify(backData)
+}
+
+/**
+ * 获取二级分类列表筛选列表的方法。
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoSubclassList())>}
+ */
+async function getSubclassList(args) {
+    var backData = new RepVideoSubclassList()
+    backData.data = new VideoSubclass()
+    
+    try {
+        appConfig.webSite = UZUtils.removeTrailingSlash(appConfig.webSite)
+        
+        let homeUrl = `${appConfig.webSite}/api.php/getappapi.index/initV119`
+        
+        let response = await req(homeUrl, {
+            method: 'POST',
+            headers: appConfig.headers
+        })
+        
+
+        
+        // 解析响应
+        let resData = typeof response.data === 'string' ? JSON.parse(response.data) : response.data
+        let decrypted = Decrypt(resData.data)
+        let json = JSON.parse(decrypted)
+        
+        let typeList = json.type_list || []
+        let currentType = null
+        
+        // 找到当前分类的筛选配置
+        for (let i = 0; i < typeList.length; i++) {
+            if (String(typeList[i].type_id) === args.url) {
+                currentType = typeList[i]
+                break
+            }
+        }
+        
+        if (currentType && currentType.filter_type_list) {
+            let filterList = currentType.filter_type_list
+            
+            for (let i = 0; i < filterList.length; i++) {
+                let filterItem = filterList[i]
+                let filterTitle = new FilterTitle()
+                filterTitle.name = filterItem.name
+                
+                // 构建筛选选项
+                if (filterItem.list && Array.isArray(filterItem.list)) {
+                    for (let j = 0; j < filterItem.list.length; j++) {
+                        let option = filterItem.list[j]
+                        let filterLab = new FilterLabel()
+                        filterLab.name = option
+                        filterLab.id = option  // 使用选项值作为ID
+                        filterTitle.list.push(filterLab)
+                    }
+                }
+                
+                backData.data.filter.push(filterTitle)
+            }
+        }
+        
+    } catch (error) {
+        backData.error = '获取筛选列表失败: ' + error.toString()
+        UZUtils.debugLog(backData.error)
+    }
+    
+    return JSON.stringify(backData)
+}
+
+/**
+ * 获取分类视频列表
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoList())>}
+ */
+async function getVideoList(args) {
+    var backData = new RepVideoList()
+    backData.data = []
+    
+    try {
+        appConfig.webSite = UZUtils.removeTrailingSlash(appConfig.webSite)
+        
+        // 构建筛选参数
+        let filterParams = ''
+        if (args.filter && args.filter.length > 0) {
+            // 从filter构建参数
+            let params = []
+            for (let i = 0; i < args.filter.length; i++) {
+                let f = args.filter[i]
+                if (f.id) {
+                    // 根据筛选名称映射到URL参数
+                    switch(f.name) {
+                        case '年份':
+                        case 'year':
+                            params.push(`year=${f.id}`)
+                            break
+                        case '排序':
+                        case 'sort':
+                            params.push(`sort=${f.id}`)
+                            break
+                        case '语言':
+                        case 'lang':
+                            params.push(`lang=${f.id}`)
+                            break
+                        case '分类':
+                        case 'class':
+                            params.push(`class=${f.id}`)
+                            break
+                        case '地区':
+                        case 'area':
+                            params.push(`area=${f.id}`)
+                            break
+                    }
+                }
+            }
+            filterParams = params.join('&')
+        }
+        
+        // 如果没有筛选参数，使用默认值
+        if (!filterParams) {
+            filterParams = 'sort=最新'
+        }
+        
+        let page = args.page || 1
+        let url = `${appConfig.webSite}/api.php/getappapi.index/typeFilterVodList?type_id=${args.url}&page=${page}&${filterParams}`
+        
+        UZUtils.debugLog('列表URL: ' + url)
+        
+        let response = await req(url, {
+            method: 'POST',
+            headers: appConfig.headers
+        })
+        
+
+        // 解析响应
+        let resData = typeof response.data === 'string' ? JSON.parse(response.data) : response.data
+        let decrypted = Decrypt(resData.data)
+        let json = JSON.parse(decrypted)
+        
+        let list = json.recommend_list || []
+        let videos = []
+        
+        for (let i = 0; i < list.length; i++) {
+            let item = list[i]
+            let video = new VideoDetail()
+            video.vod_id = String(item.vod_id)
+            video.vod_name = item.vod_name || ''
+            video.vod_pic = item.vod_pic || ''
+            video.vod_remarks = item.vod_remarks || ''
+            videos.push(video)
+        }
+        
+        backData.data = videos
+        backData.total = json.total || videos.length
+        
+    } catch (error) {
+        backData.error = '获取列表失败: ' + error.toString()
+        UZUtils.debugLog(backData.error)
+    }
+    
+    return JSON.stringify(backData)
+}
+
+/**
+ * 获取二级分类视频列表 或 筛选视频列表
+ * @param {UZSubclassVideoListArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoList())>}
+ */
+async function getSubclassVideoList(args) {
+    var backData = new RepVideoList()
+    try {
+        // 构建模拟的 args 对象
+        let mockArgs = {
+            url: args.mainClassId,
+            page: args.page,
+            filter: args.filter
+        }
+        let resultStr = await getVideoList(mockArgs)
+        return resultStr
+    } catch (error) {
+        backData.error = error.toString()
+        return JSON.stringify(backData)
+    }
+}
+
+/**
+ * 获取视频详情
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoDetail())>}
+ */
+async function getVideoDetail(args) {
+    var backData = new RepVideoDetail()
+    
+    try {
+        appConfig.webSite = UZUtils.removeTrailingSlash(appConfig.webSite)
+        let detailUrl = `${appConfig.webSite}/api.php/getappapi.index/vodDetail?vod_id=${args.url}`
+        
+        UZUtils.debugLog('详情URL: ' + detailUrl)
+        
+        let response = await req(detailUrl, {
+            method: 'POST',
+            headers: appConfig.headers
+        })
+        
+
+        // 解析响应
+        let resData = typeof response.data === 'string' ? JSON.parse(response.data) : response.data
+        let decrypted = Decrypt(resData.data)
+        let json = JSON.parse(decrypted)
+        
+        let vod = json.vod || {}
+        let playList = json.vod_play_list || []
+        
+        let vod_play_from = []
+        let vod_play_url = []
+        let parses = []  // 存储解析地址
+        
+        for (let i = 0; i < playList.length; i++) {
+            let item = playList[i]
+            vod_play_from.push(item.player_info.show || `线路${i+1}`)
+            parses.push(item.player_info.parse || '')
+            
+            let urls = item.urls || []
+            let playlist = []
+            
+            for (let j = 0; j < urls.length; j++) {
+                let urlItem = urls[j]
+                let title = urlItem.name
+                let url = urlItem.url
+                let parse = parses[i]
+                let token = urlItem.token || ''
+                
+                // 判断URL类型
+                if (/m3u8|mp4/.test(url) && !/senhewenhua.com/.test(url)) {
+                    // 直接播放
+                    playlist.push(`${title}$${url}`)
+                } else if (/http/.test(parse)) {
+                    // 使用解析接口
+                    playlist.push(`${title}$${parse}${url}`)
+                } else {
+                    // 需要二次解析
+                    let parseUrl = `${appConfig.webSite}/api.php/getappapi.index/vodParse?parse_api=${parse}&url=${Encrypt(url)}&token=${token}`
+                    playlist.push(`${title}$${parseUrl}`)
+                }
+            }
+            
+            vod_play_url.push(playlist.join('#'))
+        }
+        
+        let video = new VideoDetail()
+        video.vod_id = String(args.url)
+        video.vod_name = vod.vod_name || ''
+        video.vod_pic = vod.vod_pic || ''
+        video.type_name = vod.vod_class || ''
+        video.vod_actor = vod.vod_actor || ''
+        video.vod_director = vod.vod_director || ''
+        video.vod_area = vod.vod_area || ''
+        video.vod_content = vod.vod_content || vod.vod_blurb || ''
+        video.vod_remarks = vod.vod_remarks || ''
+        video.vod_year = vod.vod_year || ''
+        video.vod_play_from = vod_play_from.join('$$$')
+        video.vod_play_url = vod_play_url.join('$$$')
+        
+        backData.data = video
+        
+    } catch (error) {
+        backData.error = '获取详情失败: ' + error.toString()
+        UZUtils.debugLog(backData.error)
+    }
+    
+    return JSON.stringify(backData)
+}
+
+/**
+ * 获取视频的播放地址
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoPlayUrl())>}
+ */
+async function getVideoPlayUrl(args) {
+    var backData = new RepVideoPlayUrl()
+    
+    try {
+        let url = args.url
+        
+        // 如果是需要二次解析的URL
+        if (url.includes('/api.php/getappapi.index/vodParse')) {
+            let response = await req(url, {
+                method: 'POST',
+                headers: appConfig.headers
+            })
+            
+
+            // 解析响应
+            let resData = typeof response.data === 'string' ? JSON.parse(response.data) : response.data
+            
+            if (resData.code == "1") {
+                try {
+                    let decrypted = Decrypt(resData.data)
+                    let json = JSON.parse(decrypted)
+                    let urlData = JSON.parse(json.json)
+                    
+                    if (urlData.code != "404" && urlData.url) {
+                        backData.data = urlData.url
+                    } else {
+                        backData.error = '解析失败: ' + (urlData.msg || '未知错误')
+                    }
+                } catch (e) {
+                    backData.error = '解析响应失败: ' + e.message
+                }
+            } else {
+                backData.error = '请求失败: ' + (resData.msg || '未知错误')
+            }
+        } else {
+            // 直接播放的URL
+            backData.data = url
+        }
+        
+        backData.headers = appConfig.headers
+        
+    } catch (error) {
+        backData.error = '获取播放地址失败: ' + error.toString()
+        UZUtils.debugLog(backData.error)
+    }
+    
+    return JSON.stringify(backData)
+}
+
+/**
+ * 搜索视频
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoList())>}
+ */
+async function searchVideo(args) {
+    var backData = new RepVideoList()
+    backData.data = []
+    
+    try {
+        appConfig.webSite = UZUtils.removeTrailingSlash(appConfig.webSite)
+        let url = `${appConfig.webSite}/api.php/getappapi.index/searchList?keywords=${encodeURIComponent(args.searchWord)}&type_id=0&page=${args.page || 1}`
+        
+        UZUtils.debugLog('搜索URL: ' + url)
+        
+        let response = await req(url, {
+            method: 'POST',
+            headers: appConfig.headers
+        })
+        
+
+        // 解析响应
+        let resData = typeof response.data === 'string' ? JSON.parse(response.data) : response.data
+        let decrypted = Decrypt(resData.data)
+        let json = JSON.parse(decrypted)
+        
+        let list = json.search_list || []
+        let videos = []
+        
+        for (let i = 0; i < list.length; i++) {
+            let item = list[i]
+            let video = new VideoDetail()
+            video.vod_id = String(item.vod_id)
+            video.vod_name = item.vod_name || ''
+            video.vod_pic = item.vod_pic || ''
+            video.vod_remarks = item.vod_remarks || ''
+            videos.push(video)
+        }
+        
+        backData.data = videos
+        backData.total = json.total || videos.length
+        
+    } catch (error) {
+        backData.error = '搜索失败: ' + error.toString()
+        UZUtils.debugLog(backData.error)
+    }
+    
+    return JSON.stringify(backData)
+}

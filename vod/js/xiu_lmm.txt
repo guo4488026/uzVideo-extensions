@@ -1,0 +1,989 @@
+//MARK: 注意
+// 直接复制该文件进行扩展开发
+// 请保持以下 变量 及 函数 名称不变
+// 请勿删减，可以新增
+//@name: 路漫漫
+//@version:1
+//@webSite:https://www.lmm85.com
+//@order: D1
+
+
+const appConfig = {
+  // MARK: 0. 这个是请求头 一般不用改动
+  get headers() {
+    return {
+      // 使用电脑模式
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Safari/605.1.15',
+    }
+  },
+  // MARK: 0.1 这个是播放请求头 一般不用改变
+  get playHeaders() {
+    return {
+      Referer: this.webSite,
+    }
+  },
+
+  // MARK: 1. 这个是网站主页
+  _webSite: 'https://www.lmm85.com',
+
+  // MARK: 2. 这个是含有筛选条件的页面
+  // 筛选URL格式：https://www.lmm85.com/vod/show/id/ribendongman/by/time/page/2/year/2024.html
+  // @{webSite} 网站主页
+  // @{mainId} 一级分类id，如 ribendongman
+  // @{filterId0} 排序筛选，如 /by/time
+  // @{filterId1} 年份筛选，如 /year/2024
+  // @{page} 页码
+  filterListUrl: '@{webSite}/vod/show/id/@{mainId}@{filterId0}/page/@{page}@{filterId1}.html',
+
+  // MARK: 2.1 不带筛选的
+  // 基础格式：https://www.lmm85.com/vod/show/id/ribendongman/page/1.html
+  mainListUrl: '@{webSite}/vod/show/id/@{mainId}/page/@{page}.html',
+
+  // MARK: 2.2 更新表URL配置
+  weekUpdateUrl: '@{webSite}/label/week@{weekId}.html',
+
+  firstClass: [
+    {
+      // 更新表 - 今天 + 周一到周日
+      name: '更新表',
+      id: 'weekupdate',
+      filter: [
+        {
+          name: '星期',
+          list: [
+            { name: '今天', id: 'today', key: '@{weekId}' },
+            { name: '周一', id: '', key: '@{weekId}' },
+            { name: '周二', id: '2', key: '@{weekId}' },
+            { name: '周三', id: '3', key: '@{weekId}' },
+            { name: '周四', id: '4', key: '@{weekId}' },
+            { name: '周五', id: '5', key: '@{weekId}' },
+            { name: '周六', id: '6', key: '@{weekId}' },
+            { name: '周日', id: '7', key: '@{weekId}' },
+          ],
+        },
+      ],
+    },
+    {
+      // 日本动漫
+      name: '日本动漫',
+      id: 'ribendongman',
+      filter: [
+        {
+          name: '排序',
+          list: [
+            { name: '全部', id: '', key: '@{filterId0}' },
+            { name: '更新', id: '/by/time', key: '@{filterId0}' },
+            { name: '人气', id: '/by/hits', key: '@{filterId0}' },
+            { name: '评分', id: '/by/score', key: '@{filterId0}' },
+            { name: '点赞', id: '/by/up', key: '@{filterId0}' },
+          ],
+        },
+        {
+          name: '年份',
+          list: [
+            { name: '全部', id: '', key: '@{filterId1}' },
+            { name: '2024', id: '/year/2024', key: '@{filterId1}' },
+            { name: '2023', id: '/year/2023', key: '@{filterId1}' },
+            { name: '2022', id: '/year/2022', key: '@{filterId1}' },
+            { name: '2021', id: '/year/2021', key: '@{filterId1}' },
+            { name: '2020', id: '/year/2020', key: '@{filterId1}' },
+            { name: '2019', id: '/year/2019', key: '@{filterId1}' },
+            { name: '2018', id: '/year/2018', key: '@{filterId1}' },
+            { name: '2017', id: '/year/2017', key: '@{filterId1}' },
+            { name: '2016', id: '/year/2016', key: '@{filterId1}' },
+            { name: '2015', id: '/year/2015', key: '@{filterId1}' },
+            { name: '2014', id: '/year/2014', key: '@{filterId1}' },
+            { name: '更早', id: '/year/2013-1980', key: '@{filterId1}' },
+          ],
+        },
+      ],
+    },
+    {
+      // 国产动漫
+      name: '国产动漫',
+      id: 'guochandongman',
+      filter: [
+        {
+          name: '排序',
+          list: [
+            { name: '全部', id: '', key: '@{filterId0}' },
+            { name: '更新', id: '/by/time', key: '@{filterId0}' },
+            { name: '人气', id: '/by/hits', key: '@{filterId0}' },
+            { name: '评分', id: '/by/score', key: '@{filterId0}' },
+            { name: '点赞', id: '/by/up', key: '@{filterId0}' },
+          ],
+        },
+        {
+          name: '年份',
+          list: [
+            { name: '全部', id: '', key: '@{filterId1}' },
+            { name: '2024', id: '/year/2024', key: '@{filterId1}' },
+            { name: '2023', id: '/year/2023', key: '@{filterId1}' },
+            { name: '2022', id: '/year/2022', key: '@{filterId1}' },
+            { name: '2021', id: '/year/2021', key: '@{filterId1}' },
+            { name: '2020', id: '/year/2020', key: '@{filterId1}' },
+            { name: '2019', id: '/year/2019', key: '@{filterId1}' },
+            { name: '2018', id: '/year/2018', key: '@{filterId1}' },
+            { name: '2017', id: '/year/2017', key: '@{filterId1}' },
+            { name: '2016', id: '/year/2016', key: '@{filterId1}' },
+            { name: '2015', id: '/year/2015', key: '@{filterId1}' },
+            { name: '2014', id: '/year/2014', key: '@{filterId1}' },
+            { name: '更早', id: '/year/2013-1980', key: '@{filterId1}' },
+          ],
+        },
+      ],
+    },
+    {
+      // 欧美动漫
+      name: '欧美动漫',
+      id: 'oumeidongman',
+      filter: [
+        {
+          name: '排序',
+          list: [
+            { name: '全部', id: '', key: '@{filterId0}' },
+            { name: '更新', id: '/by/time', key: '@{filterId0}' },
+            { name: '人气', id: '/by/hits', key: '@{filterId0}' },
+            { name: '评分', id: '/by/score', key: '@{filterId0}' },
+            { name: '点赞', id: '/by/up', key: '@{filterId0}' },
+          ],
+        },
+        {
+          name: '年份',
+          list: [
+            { name: '全部', id: '', key: '@{filterId1}' },
+            { name: '2024', id: '/year/2024', key: '@{filterId1}' },
+            { name: '2023', id: '/year/2023', key: '@{filterId1}' },
+            { name: '2022', id: '/year/2022', key: '@{filterId1}' },
+            { name: '2021', id: '/year/2021', key: '@{filterId1}' },
+            { name: '2020', id: '/year/2020', key: '@{filterId1}' },
+            { name: '2019', id: '/year/2019', key: '@{filterId1}' },
+            { name: '2018', id: '/year/2018', key: '@{filterId1}' },
+            { name: '2017', id: '/year/2017', key: '@{filterId1}' },
+            { name: '2016', id: '/year/2016', key: '@{filterId1}' },
+            { name: '2015', id: '/year/2015', key: '@{filterId1}' },
+            { name: '2014', id: '/year/2014', key: '@{filterId1}' },
+            { name: '更早', id: '/year/2013-1980', key: '@{filterId1}' },
+          ],
+        },
+      ],
+    },
+    {
+      // 日本动画电影
+      name: '日本动画电影',
+      id: 'ribendonghuadianying',
+      filter: [
+        {
+          name: '排序',
+          list: [
+            { name: '全部', id: '', key: '@{filterId0}' },
+            { name: '更新', id: '/by/time', key: '@{filterId0}' },
+            { name: '人气', id: '/by/hits', key: '@{filterId0}' },
+            { name: '评分', id: '/by/score', key: '@{filterId0}' },
+            { name: '点赞', id: '/by/up', key: '@{filterId0}' },
+          ],
+        },
+        {
+          name: '年份',
+          list: [
+            { name: '全部', id: '', key: '@{filterId1}' },
+            { name: '2024', id: '/year/2024', key: '@{filterId1}' },
+            { name: '2023', id: '/year/2023', key: '@{filterId1}' },
+            { name: '2022', id: '/year/2022', key: '@{filterId1}' },
+            { name: '2021', id: '/year/2021', key: '@{filterId1}' },
+            { name: '2020', id: '/year/2020', key: '@{filterId1}' },
+            { name: '2019', id: '/year/2019', key: '@{filterId1}' },
+            { name: '2018', id: '/year/2018', key: '@{filterId1}' },
+            { name: '2017', id: '/year/2017', key: '@{filterId1}' },
+            { name: '2016', id: '/year/2016', key: '@{filterId1}' },
+            { name: '2015', id: '/year/2015', key: '@{filterId1}' },
+            { name: '2014', id: '/year/2014', key: '@{filterId1}' },
+            { name: '更早', id: '/year/2013-1980', key: '@{filterId1}' },
+          ],
+        },
+      ],
+    },
+    {
+      // 国产动画电影
+      name: '国产动画电影',
+      id: 'guochandonghuadianying',
+      filter: [
+        {
+          name: '排序',
+          list: [
+            { name: '全部', id: '', key: '@{filterId0}' },
+            { name: '更新', id: '/by/time', key: '@{filterId0}' },
+            { name: '人气', id: '/by/hits', key: '@{filterId0}' },
+            { name: '评分', id: '/by/score', key: '@{filterId0}' },
+            { name: '点赞', id: '/by/up', key: '@{filterId0}' },
+          ],
+        },
+        {
+          name: '年份',
+          list: [
+            { name: '全部', id: '', key: '@{filterId1}' },
+            { name: '2024', id: '/year/2024', key: '@{filterId1}' },
+            { name: '2023', id: '/year/2023', key: '@{filterId1}' },
+            { name: '2022', id: '/year/2022', key: '@{filterId1}' },
+            { name: '2021', id: '/year/2021', key: '@{filterId1}' },
+            { name: '2020', id: '/year/2020', key: '@{filterId1}' },
+            { name: '2019', id: '/year/2019', key: '@{filterId1}' },
+            { name: '2018', id: '/year/2018', key: '@{filterId1}' },
+            { name: '2017', id: '/year/2017', key: '@{filterId1}' },
+            { name: '2016', id: '/year/2016', key: '@{filterId1}' },
+            { name: '2015', id: '/year/2015', key: '@{filterId1}' },
+            { name: '2014', id: '/year/2014', key: '@{filterId1}' },
+            { name: '更早', id: '/year/2013-1980', key: '@{filterId1}' },
+          ],
+        },
+      ],
+    },
+    {
+      // 欧美动画电影
+      name: '欧美动画电影',
+      id: 'oumeidonghuadianying',
+      filter: [
+        {
+          name: '排序',
+          list: [
+            { name: '全部', id: '', key: '@{filterId0}' },
+            { name: '更新', id: '/by/time', key: '@{filterId0}' },
+            { name: '人气', id: '/by/hits', key: '@{filterId0}' },
+            { name: '评分', id: '/by/score', key: '@{filterId0}' },
+            { name: '点赞', id: '/by/up', key: '@{filterId0}' },
+          ],
+        },
+        {
+          name: '年份',
+          list: [
+            { name: '全部', id: '', key: '@{filterId1}' },
+            { name: '2024', id: '/year/2024', key: '@{filterId1}' },
+            { name: '2023', id: '/year/2023', key: '@{filterId1}' },
+            { name: '2022', id: '/year/2022', key: '@{filterId1}' },
+            { name: '2021', id: '/year/2021', key: '@{filterId1}' },
+            { name: '2020', id: '/year/2020', key: '@{filterId1}' },
+            { name: '2019', id: '/year/2019', key: '@{filterId1}' },
+            { name: '2018', id: '/year/2018', key: '@{filterId1}' },
+            { name: '2017', id: '/year/2017', key: '@{filterId1}' },
+            { name: '2016', id: '/year/2016', key: '@{filterId1}' },
+            { name: '2015', id: '/year/2015', key: '@{filterId1}' },
+            { name: '2014', id: '/year/2014', key: '@{filterId1}' },
+            { name: '更早', id: '/year/2013-1980', key: '@{filterId1}' },
+          ],
+        },
+      ],
+    },
+  ],
+
+  // MARK: 4. 分类筛选列表元素
+  // 根据原规则：一级:'#mdym .col-6;h6&&Text;.lazyload&&data-src;.label&&Text;a&&href'
+  // 使用更通用的选择器，适配苹果CMS常见结构
+  videoListLiTag: {
+    name: 'div',
+    class: 'col-6',
+  },
+
+  // MARK: 5. 单个视频的图片元素
+  vImageTag: {
+    name: 'img',
+    class: 'lazyload',
+  },
+  // MARK: 6. 单个视频的名称元素
+  vNameTag: {
+    name: 'h6',
+    class: '',
+  },
+  // MARK: 7. 选集线路列表
+  playFromTag: {
+    name: 'div',
+    class: 'module-tab-content',
+  },
+  // MARK: 8. 单个剧集的元素
+  episodeItemTag: {
+    name: 'a',
+    class: '',
+  },
+  // MARK: 9. 搜索链接
+  // 原规则：/index.php/ajax/suggest?mid=1&wd=**&limit=50
+  searchUrl: '@{webSite}/index.php/ajax/suggest?mid=1&wd=@{searchWord}&limit=50',
+  // MARK: 10. 搜索结果列表元素（JSON格式，需要特殊处理）
+  searchListTag: {
+    name: 'json',
+    class: 'list',
+  },
+  // MARK: 11. 搜索结果图片元素
+  searchImageTag: {
+    name: 'json',
+    class: 'pic',
+  },
+  // MARK: 12. 搜索结果名称元素
+  searchNameTag: {
+    name: 'json',
+    class: 'name',
+  },
+
+  /**
+   * 网站主页，uz 调用每个函数前都会进行赋值操作
+   * 如果不想被改变 请自定义一个变量
+   */
+  get webSite() {
+    if (this._webSite.endsWith('/')) {
+      this._webSite = this._webSite.substring(0, this._webSite.length - 1)
+    }
+    return this._webSite
+  },
+  set webSite(value) {
+    this._webSite = value
+  },
+
+  _uzTag: '',
+  /**
+   * 扩展标识，初次加载时，uz 会自动赋值，请勿修改
+   * 用于读取环境变量
+   */
+  get uzTag() {
+    return this._uzTag
+  },
+  set uzTag(value) {
+    this._uzTag = value
+  },
+}
+
+/**
+ * 获取当前星期几对应的ID
+ * 0=周日, 1=周一, 2=周二...
+ * @returns {string} 周一返回空字符串，其他返回对应数字
+ */
+function getCurrentWeekId() {
+  const day = new Date().getDay()
+  // 周一(1)返回空字符串，其他返回对应数字
+  if (day === 1) return ''
+  if (day === 0) return '7' // 周日
+  return String(day)
+}
+
+/**
+ * 异步获取分类列表的方法。
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoClassList())>}
+ */
+async function getClassList(args) {
+  var backData = new RepVideoClassList()
+  var firstClass = []
+  try {
+    for (let index = 0; index < appConfig.firstClass.length; index++) {
+      const element = appConfig.firstClass[index]
+      firstClass.push({
+        type_name: element.name,
+        type_id: element.id,
+        hasSubclass: element.filter.length > 0,
+      })
+    }
+    backData.data = firstClass
+  } catch (error) {
+    backData.error = error.toString()
+  }
+  return JSON.stringify(backData)
+}
+
+/**
+ * 获取二级分类列表筛选列表的方法。
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoSubclassList())>}
+ */
+async function getSubclassList(args) {
+  var backData = new RepVideoSubclassList()
+  try {
+    for (let index = 0; index < appConfig.firstClass.length; index++) {
+      const element = appConfig.firstClass[index]
+      if (element.id == args.url) {
+        backData.data = { filter: element.filter }
+        break
+      }
+    }
+  } catch (error) {
+    backData.error = error.toString()
+  }
+  return JSON.stringify(backData)
+}
+
+/**
+ * 解析视频列表的通用函数（专用于更新表页面）
+ * @param {string} htmlStr HTML字符串
+ * @returns {Array} 视频列表
+ */
+function parseWeekUpdateList(htmlStr) {
+  const $ = cheerio.load(htmlStr)
+  var backDatalist = []
+  
+  try {
+    // 更新表页面可能有不同的结构，尝试多种选择器
+    let videoItems = $('#mdym .col-6')
+    
+    if (videoItems.length === 0) {
+      videoItems = $('.col-6.col-md-4.col-lg-3')
+    }
+    if (videoItems.length === 0) {
+      videoItems = $('.video-item')
+    }
+    if (videoItems.length === 0) {
+      videoItems = $('.fed-list-item')
+    }
+    if (videoItems.length === 0) {
+      videoItems = $('.stui-vodlist__item')
+    }
+    if (videoItems.length === 0) {
+      videoItems = $('ul li').filter(function() {
+        return $(this).find('img').length > 0 && $(this).find('h6, h5, h4, .title').length > 0
+      })
+    }
+    
+    // 尝试直接查找所有包含链接和图片的元素
+    if (videoItems.length === 0) {
+      videoItems = $('a').filter(function() {
+        return $(this).find('img').length > 0
+      })
+    }
+
+    for (let index = 0; index < videoItems.length; index++) {
+      const element = videoItems[index]
+      const $el = $(element)
+      
+      // 获取标题 - 尝试多种选择器
+      let name = $el.find('h6').text().trim() || 
+                 $el.find('h5').text().trim() || 
+                 $el.find('h4').text().trim() || 
+                 $el.find('.title').text().trim() ||
+                 $el.find('img').attr('alt') ||
+                 $el.attr('title') ||
+                 ''
+      
+      // 获取图片
+      let imageUrl = $el.find('img').attr('data-src') || 
+                     $el.find('img').attr('data-original') || 
+                     $el.find('img').attr('src') || 
+                     ''
+      
+      // 获取链接
+      let href = $el.attr('href') || $el.find('a').attr('href') || ''
+      
+      // 如果没找到链接，向上查找
+      if (!href) {
+        let parent = $el.parent()
+        for (let i = 0; i < 3 && !href; i++) {
+          href = parent.attr('href') || ''
+          if (!href) {
+            href = parent.find('a').attr('href') || ''
+          }
+          parent = parent.parent()
+        }
+      }
+      
+      // 获取状态标签
+      let status = $el.find('.label').text().trim() || 
+                  $el.find('.pic-text').text().trim() ||
+                  $el.find('.status').text().trim() ||
+                  $el.find('.fed-list-remarks').text().trim() ||
+                  ''
+      
+      // 获取评分
+      let score = $el.find('.score').text().trim() ||
+                 $el.find('.pic-tag').text().trim() ||
+                 ''
+      
+      // 组合状态和评分
+      let remarks = status
+      if (score && score !== '0.0') {
+        remarks = remarks ? `${remarks} ${score}` : score
+      }
+      
+      if (name && href) {
+        backDatalist.push({
+          vod_pic: imageUrl,
+          vod_name: name,
+          vod_id: removeDomain(href),
+          vod_remarks: remarks,
+        })
+      }
+    }
+  } catch (error) {
+    console.error('parseWeekUpdateList error:', error)
+  }
+  
+  return backDatalist
+}
+
+/**
+ * 获取分类视频列表
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoList())>}
+ */
+async function getVideoList(args) {
+  var backData = new RepVideoList()
+  
+  try {
+    // 判断是否为更新表分类
+    const url = args.url || ''
+    const isWeekUpdate = url === 'weekupdate' || url.includes('weekupdate')
+    
+    if (isWeekUpdate) {
+      // 首次进入更新表，默认获取今天的列表
+      const currentWeekId = getCurrentWeekId()
+      
+      var weekUrl = appConfig.weekUpdateUrl
+      weekUrl = weekUrl.replace('@{webSite}', appConfig.webSite)
+      weekUrl = weekUrl.replace('@{weekId}', currentWeekId)
+      
+      const respData = await req(weekUrl, {
+        headers: appConfig.headers,
+      })
+      const htmlStr = respData.data ?? ''
+      
+      const list = parseWeekUpdateList(htmlStr)
+      backData.data = list
+      
+      return JSON.stringify(backData)
+    }
+
+    // 普通分类的处理逻辑
+    var targetUrl = args.url
+    var page = args.page || 1
+    var filterListUrl = appConfig.mainListUrl
+    filterListUrl = filterListUrl.replace('@{webSite}', appConfig.webSite)
+    filterListUrl = filterListUrl.replace('@{mainId}', targetUrl)
+    filterListUrl = filterListUrl.replace('@{page}', page)
+    
+    const respData = await req(filterListUrl, {
+      headers: appConfig.headers,
+    })
+    const htmlStr = respData.data ?? ''
+    const $ = cheerio.load(htmlStr)
+    
+    // 尝试多种选择器适配不同模板
+    let videoItems = []
+    
+    // 尝试原规则选择器 #mdym .col-6
+    videoItems = $('#mdym .col-6')
+    
+    // 如果没找到，尝试其他常见选择器
+    if (videoItems.length === 0) {
+      videoItems = $('.col-6.col-md-4.col-lg-3')
+    }
+    if (videoItems.length === 0) {
+      videoItems = $('.video-item')
+    }
+    if (videoItems.length === 0) {
+      videoItems = $('.fed-list-item')
+    }
+    if (videoItems.length === 0) {
+      videoItems = $('.stui-vodlist__item')
+    }
+    // 通用兜底：查找包含图片和标题的列表项
+    if (videoItems.length === 0) {
+      videoItems = $('ul li').filter(function() {
+        return $(this).find('img').length > 0 && $(this).find('h6, h5, h4, .title').length > 0
+      })
+    }
+    
+    backData.data = parseVideoList({ videoItems: videoItems, $: $ })
+  } catch (error) {
+    backData.error = error.toString()
+    console.error('getVideoList error:', error)
+  }
+  
+  return JSON.stringify(backData)
+}
+
+/**
+ * 获取二级分类视频列表 或 筛选视频列表
+ * @param {UZSubclassVideoListArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoList())>}
+ */
+async function getSubclassVideoList(args) {
+  var backData = new RepVideoList()
+  
+  try {
+    // 判断是否为更新表分类
+    const mainClassId = args.mainClassId || ''
+    const isWeekUpdate = mainClassId === 'weekupdate' || mainClassId.includes('weekupdate')
+    
+    if (isWeekUpdate) {
+      // 找到星期筛选条件
+      let weekId = ''
+      if (args.filter && Array.isArray(args.filter)) {
+        for (let index = 0; index < args.filter.length; index++) {
+          const element = args.filter[index]
+          if (element.key === '@{weekId}') {
+            weekId = element.id
+            break
+          }
+        }
+      }
+      
+      // 处理"今天"的情况
+      if (weekId === 'today') {
+        weekId = getCurrentWeekId()
+      }
+      
+      var weekUrl = appConfig.weekUpdateUrl
+      weekUrl = weekUrl.replace('@{webSite}', appConfig.webSite)
+      weekUrl = weekUrl.replace('@{weekId}', weekId)
+
+      const respData = await req(weekUrl, {
+        headers: appConfig.headers,
+      })
+      const htmlStr = respData.data ?? ''
+
+      const list = parseWeekUpdateList(htmlStr)
+      backData.data = list
+      
+      return JSON.stringify(backData)
+    }
+
+    // 普通分类的处理逻辑
+    var filterListUrl = appConfig.filterListUrl
+    filterListUrl = filterListUrl.replace('@{webSite}', appConfig.webSite)
+    filterListUrl = filterListUrl.replace('@{mainId}', mainClassId)
+    
+    if (args.filter && Array.isArray(args.filter)) {
+      for (let index = 0; index < args.filter.length; index++) {
+        const element = args.filter[index]
+        filterListUrl = filterListUrl.replace(element.key, element.id)
+      }
+    }
+    
+    filterListUrl = filterListUrl.replace('@{page}', args.page || 1)
+    filterListUrl = filterListUrl.replace(/@{.*?}/g, '')
+
+    const respData = await req(filterListUrl, {
+      headers: appConfig.headers,
+    })
+    const htmlStr = respData.data ?? ''
+    const $ = cheerio.load(htmlStr)
+    
+    // 复用getVideoList的选择器逻辑
+    let videoItems = $('#mdym .col-6')
+    if (videoItems.length === 0) {
+      videoItems = $('.col-6.col-md-4.col-lg-3')
+    }
+    if (videoItems.length === 0) {
+      videoItems = $('.video-item')
+    }
+    if (videoItems.length === 0) {
+      videoItems = $('.fed-list-item')
+    }
+    if (videoItems.length === 0) {
+      videoItems = $('.stui-vodlist__item')
+    }
+    if (videoItems.length === 0) {
+      videoItems = $('ul li').filter(function() {
+        return $(this).find('img').length > 0 && $(this).find('h6, h5, h4, .title').length > 0
+      })
+    }
+
+    const list = parseVideoList({ videoItems: videoItems, $: $ })
+    backData.data = list
+  } catch (error) {
+    backData.error = error.toString()
+    console.error('getSubclassVideoList error:', error)
+  }
+  
+  return JSON.stringify(backData)
+}
+
+function findHref($, element) {
+  // 首先尝试直接从当前元素或子元素获取链接
+  let href = $(element).attr('href') || $(element).find('a').attr('href') || ''
+  
+  // 如果没找到，向上查找父元素
+  if (!href) {
+    const maxDeep = 5
+    let parentEle = $(element).parent()
+    let deep = 0
+    
+    while (!href && deep < maxDeep) {
+      href = $(parentEle).attr('href') || ''
+      if (!href) {
+        href = $(parentEle).find('a').attr('href') || ''
+      }
+      parentEle = $(parentEle).parent()
+      deep++
+    }
+  }
+  
+  return href
+}
+
+function parseImage($, element) {
+  // 尝试多种图片属性，苹果CMS常用lazyload
+  const img = $(element).find('img.lazyload, img[data-src], img[data-original], img')
+  
+  let imageUrl = img.attr('data-src') || img.attr('data-original') || img.attr('src') || ''
+  
+  // 如果没有找到，尝试从当前元素的属性中获取
+  if (!imageUrl) {
+    const allAttrs = $(element)[0]?.attribs || {}
+    for (let key in allAttrs) {
+      const val = allAttrs[key]
+      if (typeof val === 'string' && val.startsWith('http') && (val.includes('.jpg') || val.includes('.png') || val.includes('.jpeg') || val.includes('pic'))) {
+        imageUrl = val
+        break
+      }
+    }
+  }
+  
+  return imageUrl
+}
+
+function parseVideoList({ videoItems, $ }) {
+  var backDatalist = []
+  try {
+    for (let index = 0; index < videoItems.length; index++) {
+      const element = videoItems[index]
+      const $el = $(element)
+      
+      // 获取标题 - 尝试多种选择器
+      let name = $el.find('h6').text().trim() || 
+                 $el.find('h5').text().trim() || 
+                 $el.find('h4').text().trim() || 
+                 $el.find('.title').text().trim() ||
+                 $el.find('a').attr('title') ||
+                 ''
+      
+      // 获取图片
+      let imageUrl = parseImage($, element)
+      
+      // 获取链接
+      let href = findHref($, element)
+      
+      // 获取状态标签
+      let status = $el.find('.label').text().trim() || 
+                  $el.find('.pic-text').text().trim() ||
+                  $el.find('.status').text().trim() ||
+                  $el.find('.fed-list-remarks').text().trim() ||
+                  ''
+      
+      // 获取评分
+      let score = $el.find('.score').text().trim() ||
+                 $el.find('.pic-tag').text().trim() ||
+                 ''
+      
+      // 组合状态和评分
+      let remarks = status
+      if (score && score !== '0.0') {
+        remarks = remarks ? `${remarks} ${score}` : score
+      }
+      
+      if (name && href) {
+        backDatalist.push({
+          vod_pic: imageUrl,
+          vod_name: name,
+          vod_id: removeDomain(href),
+          vod_remarks: remarks,
+        })
+      }
+    }
+  } catch (error) {
+    console.error('parseVideoList error:', error)
+  }
+  
+  return backDatalist
+}
+
+/**
+ * 获取视频详情
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoDetail())>}
+ */
+async function getVideoDetail(args) {
+  var backData = new RepVideoDetail()
+  try {
+    var url = combineUrl(args.url)
+    const respData = await req(url, {
+      headers: appConfig.headers,
+    })
+    const htmlStr = respData.data ?? ''
+    const $ = cheerio.load(htmlStr)
+    
+    // 获取标题
+    const title = $('h1').text().trim() || $('.video-info-title').text().trim() || ''
+    
+    // 获取图片
+    const img = $('.url_img').attr('src') || 
+                $('.video-info-img img').attr('src') ||
+                $('.fed-lazy').attr('data-original') ||
+                ''
+    
+    // 获取简介
+    const desc = $('.video-info-content').text().trim() || 
+                $('.fed-part-both').text().trim() ||
+                ''
+    
+    // 获取播放列表 - 尝试多种选择器
+    let playFromList = []
+    let playUrlList = []
+    
+    // 尝试找到所有播放线路
+    const tabs = $('.module-tab-content .tab-item, .stui-vodlist__head h3, .fed-play-item h4')
+    const playlists = $('.scroll-content, .stui-content__playlist, .fed-play-item ul')
+    
+    if (tabs.length > 0 && playlists.length > 0) {
+      tabs.each((i, tab) => {
+        const fromName = $(tab).text().trim()
+        const playlist = playlists.eq(i)
+        
+        if (playlist.length > 0) {
+          const episodes = []
+          playlist.find('a').each((j, ep) => {
+            const epName = $(ep).text().trim()
+            const epHref = $(ep).attr('href') || ''
+            if (epName && epHref) {
+              episodes.push(`${epName}$${removeDomain(epHref)}`)
+            }
+          })
+          
+          if (episodes.length > 0) {
+            playFromList.push(fromName)
+            playUrlList.push(episodes.join('#'))
+          }
+        }
+      })
+    }
+    
+    // 如果没找到，使用通用方法
+    if (playFromList.length === 0) {
+      const episodes = []
+      $('a[href*="/play/"]').each((i, ep) => {
+        const epName = $(ep).text().trim()
+        const epHref = $(ep).attr('href') || ''
+        if (epName && epHref) {
+          episodes.push(`${epName}$${removeDomain(epHref)}`)
+        }
+      })
+      
+      if (episodes.length > 0) {
+        playFromList.push('默认播放')
+        playUrlList.push(episodes.join('#'))
+      }
+    }
+    
+    backData.data = {
+      vod_play_url: playUrlList.join('$$$'),
+      vod_play_from: playFromList.join('$$$'),
+      vod_name: title,
+      vod_pic: img,
+      vod_content: desc,
+    }
+  } catch (error) {
+    backData.error = error.toString()
+  }
+  return JSON.stringify(backData)
+}
+
+function combineUrl(url) {
+  if (url.includes('http')) {
+    return url
+  } else if (url.startsWith('/')) {
+    return appConfig.webSite + url
+  } else {
+    return appConfig.webSite + '/' + url
+  }
+}
+
+function removeDomain(url) {
+  if (!url) return ''
+  if (url.includes(appConfig.webSite)) {
+    return url.replace(appConfig.webSite, '')
+  } else {
+    return url
+  }
+}
+
+/**
+ * 获取视频的播放地址
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoPlayUrl())>}
+ */
+async function getVideoPlayUrl(args) {
+  var backData = new RepVideoPlayUrl()
+  try {
+    var url = combineUrl(args.url)
+    const respData = await req(url, {
+      headers: appConfig.headers,
+    })
+    const htmlStr = respData.data ?? ''
+    
+    // 解析播放器配置，原规则：r player_.*?=(.*?)</
+    const playerMatch = htmlStr.match(/r player_.*?=(.*?)</)
+    let playUrl = ''
+    
+    if (playerMatch && playerMatch[1]) {
+      try {
+        const play = JSON.parse(playerMatch[1])
+        if (play.url && /mp4|m3u8/.test(play.url)) {
+          // 清理URL参数
+          playUrl = play.url.replace(/&t=hls&ct=1|&t=hls/g, '')
+          backData.data = playUrl
+          backData.headers = appConfig.playHeaders
+          return JSON.stringify(backData)
+        }
+      } catch (e) {}
+    }
+    
+    // 如果无法直接解析，使用嗅探模式
+    backData.sniffer = {
+      url: url
+      //ua: appConfig.headers['User-Agent'],
+    }
+    //backData.headers = appConfig.playHeaders
+  } catch (error) {
+    backData.error = error.toString()
+  }
+  return JSON.stringify(backData)
+}
+
+/**
+ * 搜索视频
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoList())>}
+ */
+async function searchVideo(args) {
+  var backData = new RepVideoList()
+  try {
+    var url = appConfig.searchUrl
+    url = url.replace('@{webSite}', appConfig.webSite)
+    url = url.replace('@{searchWord}', encodeURIComponent(args.searchWord))
+    url = url.replace('@{page}', args.page || 1)
+    
+    const respData = await req(url, {
+      headers: appConfig.headers,
+    })
+    const htmlStr = respData.data ?? ''
+    
+    // 解析JSON搜索结果
+    try {
+      const searchData = htmlStr
+      if (searchData.list && Array.isArray(searchData.list)) {
+        var list = []
+        for (let index = 0; index < searchData.list.length; index++) {
+          const item = searchData.list[index]
+          list.push({
+            vod_pic: item.pic || '',
+            vod_name: item.name || '',
+            vod_id: '/detail/' + (item.id || '') + '.html',
+          })
+        }
+        backData.data = list
+      }
+    } catch (e) {
+      // JSON解析失败，尝试HTML解析
+      console.log('JSON解析失败，尝试HTML解析')
+      const $ = cheerio.load(htmlStr)
+      const videoItems = $('#mdym .col-6, .col-6.col-md-4.col-lg-3')
+      backData.data = parseVideoList({ videoItems: videoItems, $: $ })
+    }
+  } catch (error) {
+    backData.error = error.toString()
+  }
+  return JSON.stringify(backData)
+}
