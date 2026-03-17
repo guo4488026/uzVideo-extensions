@@ -1,0 +1,335 @@
+//@name: 次元城
+//@version:6
+//@webSite:https://pc.cycback.org
+//@remark:次元城动漫源 - 修复JSON解析
+//@order: D1
+
+const appConfig = {
+    _webSite: 'https://pc.cycback.org',
+    get webSite() {
+        return this._webSite
+    },
+    set webSite(value) {
+        this._webSite = value
+    },
+    _uzTag: '',
+    get uzTag() {
+        return this._uzTag
+    },
+    set uzTag(value) {
+        this._uzTag = value
+    },
+    headers: {
+        "Accept": "application/json, text/plain, */*",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) cyc-desktop/1.0.8 Chrome/128.0.6613.36 Electron/32.0.1 Safari/537.36"
+    }
+}
+
+/**
+ * 异步获取分类列表的方法。
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoClassList())>}
+ */
+async function getClassList(args) {
+    var backData = new RepVideoClassList()
+    try {
+        appConfig.webSite = UZUtils.removeTrailingSlash(args.url || appConfig.webSite)
+        
+        let classes = [
+            {
+                type_id: '20',
+                type_name: 'TV动画'
+            },
+            {
+                type_id: '21',
+                type_name: '剧场版'
+            }
+        ]
+        backData.data = classes
+    } catch (error) {
+        backData.error = error.toString()
+    }
+    return JSON.stringify(backData)
+}
+
+/**
+ * 获取分类视频列表
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoList())>}
+ */
+async function getVideoList(args) {
+    var backData = new RepVideoList()
+    backData.data = []
+    
+    try {
+        let webSite = UZUtils.removeTrailingSlash(appConfig.webSite)
+        let page = args.page || 1
+        let url = `${webSite}/video/query?page=${page}&limit=20&tid=${args.url}&class=&year=&order=time`
+        
+        UZUtils.debugLog('请求URL: ' + url)
+        
+        let response = await req(url, {
+            method: 'GET',
+            headers: appConfig.headers
+        })
+        
+    
+        
+        // 关键修复：处理 response.data 可能已经是对象的情况
+        let json = response.data
+      
+        
+        UZUtils.debugLog('返回数据条数: ' + (json.data ? json.data.length : 0))
+        
+        if (json.data && Array.isArray(json.data)) {
+            let videos = []
+            
+            for (let i = 0; i < json.data.length; i++) {
+                let item = json.data[i]
+                
+                // 关键修复：确保所有必需字段都存在且类型正确
+                let video = {
+                    vod_id: String(item.vod_id),
+                    vod_name: String(item.name || ''),
+                    vod_pic: String(item.pic || ''),
+                    vod_remarks: String(item.score || item.remarks || ''),
+                    // 可选字段
+                    type_name: '',
+                    vod_actor: '',
+                    vod_director: '',
+                    vod_area: '',
+                    vod_content: '',
+                    vod_year: '',
+                    vod_play_from: '',
+                    vod_play_url: ''
+                }
+                
+                videos.push(video)
+            }
+            
+            // 关键修复：直接赋值数组，不要包装
+            backData.data = videos
+            backData.total = json.total || videos.length
+            UZUtils.debugLog('解析成功，共 ' + videos.length + ' 条')
+        } else {
+            backData.error = '返回数据格式错误'
+        }
+        
+    } catch (error) {
+        backData.error = '获取列表失败: ' + error.toString()
+        UZUtils.debugLog(backData.error)
+    }
+    
+    return JSON.stringify(backData)
+}
+
+/**
+ * 获取二级分类列表筛选列表的方法。
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoSubclassList())>}
+ */
+async function getSubclassList(args) {
+    var backData = new RepVideoSubclassList()
+    try {
+        backData.data = new VideoSubclass()
+    } catch (error) {
+        backData.error = error.toString()
+    }
+    return JSON.stringify(backData)
+}
+
+/**
+ * 获取二级分类视频列表 或 筛选视频列表
+ * @param {UZSubclassVideoListArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoList())>}
+ */
+async function getSubclassVideoList(args) {
+    var backData = new RepVideoList()
+    try {
+        // 构建模拟的 args 对象
+        let mockArgs = {
+            url: args.mainClassId,
+            page: args.page
+        }
+        // 调用 getVideoList 并解析结果
+        let result = await getVideoList(mockArgs)
+        return result
+    } catch (error) {
+        backData.error = error.toString()
+        return JSON.stringify(backData)
+    }
+}
+
+/**
+ * 获取视频详情
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoDetail())>}
+ */
+async function getVideoDetail(args) {
+    var backData = new RepVideoDetail()
+    
+    try {
+        let webSite = UZUtils.removeTrailingSlash(appConfig.webSite)
+        let detailUrl = `${webSite}/video/info/${args.url}`
+        
+        UZUtils.debugLog('详情URL: ' + detailUrl)
+        
+        let response = await req(detailUrl, {
+            method: 'GET',
+            headers: appConfig.headers
+        })
+        
+   
+        
+        // 关键修复：处理 response.data 可能已经是对象的情况
+        let data = response.data
+     
+        
+        let items = data.data
+        
+        if (!items) {
+            backData.error = '未获取到详情数据'
+            return JSON.stringify(backData)
+        }
+        
+        let vod_play_from = []
+        let vod_play_url = []
+        
+        // 处理播放列表
+        if (items.vod_play_from && Array.isArray(items.vod_play_from)) {
+            for (let i = 0; i < items.vod_play_from.length; i++) {
+                let from = items.vod_play_from[i]
+                let fromName = from.name || from.code || '线路' + (i + 1)
+                vod_play_from.push(fromName)
+                
+                try {
+                    let playRes = await req(`${webSite}/video/play_url?id=${args.url}&from=${from.code}`, {
+                        method: 'GET',
+                        headers: appConfig.headers
+                    })
+                    
+                   
+                    
+                    // 关键修复：处理 playRes.data 可能已经是对象的情况
+                    let playData = playRes.data
+                 
+               
+                    if (playData.data && Array.isArray(playData.data)) {
+                        let playlist = playData.data.map(item => {
+                            return `${item.name}$${item.url}`
+                        }).join('#')
+                        vod_play_url.push(playlist)
+                    }
+                    UZUtils.debugLog(vod_play_url)
+                } catch (e) {
+                    UZUtils.debugLog('获取播放地址失败: ' + e.message)
+                }
+            }
+        }
+        
+        // 构建详情对象
+        let video = {
+            vod_id: String(args.url),
+            vod_name: String(items.vod_name || ''),
+            vod_pic: String(items.vod_pic || ''),
+            type_name: String(items.vod_class || ''),
+            vod_actor: String(items.vod_actor || ''),
+            vod_director: String(items.vod_director || ''),
+            vod_area: String(items.vod_area || ''),
+            vod_content: String(items.vod_blurb || ''),
+            vod_remarks: String(items.vod_remarks || ''),
+            vod_year: String(items.vod_year || ''),
+            vod_play_from: vod_play_from.join('$$$'),
+            vod_play_url: vod_play_url.join('$$$')
+        }
+        
+        backData.data = video
+        
+    } catch (error) {
+        backData.error = '获取详情失败: ' + error.toString()
+        UZUtils.debugLog(backData.error)
+    }
+    
+    return JSON.stringify(backData)
+}
+
+/**
+ * 获取视频的播放地址
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoPlayUrl())>}
+ */
+async function getVideoPlayUrl(args) {
+    var backData = new RepVideoPlayUrl()
+    try {
+        // 详情页已获取真实地址，直接返回
+        let response = await req(args.url, {
+            method: 'GET',
+            headers: appConfig.headers
+        })
+
+        // 关键修复：处理 response.data 可能已经是对象的情况
+        let json = response.data
+   
+     
+        backData.data = json.url
+        backData.headers = appConfig.headers
+    } catch (error) {
+        backData.error = error.toString()
+    }
+    return JSON.stringify(backData)
+}
+
+/**
+ * 搜索视频
+ * @param {UZArgs} args
+ * @returns {@Promise<JSON.stringify(new RepVideoList())>}
+ */
+async function searchVideo(args) {
+    var backData = new RepVideoList()
+    backData.data = []
+    
+    try {
+        let webSite = UZUtils.removeTrailingSlash(appConfig.webSite)
+        let url = `${webSite}/video/search?text=${encodeURIComponent(args.searchWord)}&pg=${args.page || 1}&limit=30`
+        
+        UZUtils.debugLog('搜索URL: ' + url)
+        
+        let response = await req(url, {
+            method: 'GET',
+            headers: appConfig.headers
+        })
+        
+        
+        
+        // 关键修复：处理 response.data 可能已经是对象的情况
+        let data = response.data
+     
+        
+        if (data.data && Array.isArray(data.data)) {
+            let videos = data.data.map(item => {
+                return {
+                    vod_id: String(item.vod_id),
+                    vod_name: String(item.name || ''),
+                    vod_pic: String(item.pic || ''),
+                    vod_remarks: String(item.year || ''),
+                    type_name: '',
+                    vod_actor: '',
+                    vod_director: '',
+                    vod_area: '',
+                    vod_content: '',
+                    vod_year: '',
+                    vod_play_from: '',
+                    vod_play_url: ''
+                }
+            })
+            backData.data = videos
+            backData.total = data.total || videos.length
+        }
+        
+    } catch (error) {
+        backData.error = '搜索失败: ' + error.toString()
+        UZUtils.debugLog(backData.error)
+    }
+    
+    return JSON.stringify(backData)
+}
