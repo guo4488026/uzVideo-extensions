@@ -1,6 +1,6 @@
-//@name:人人影视[优]
+//@name:人人影视[优]-开发测试中
 //@version:1
-//@webSite:http://192.168.1.55:5757/api/人人影视[优]
+//@webSite:https://catbox.n13.club/18/人人影视.php
 //@remark:开发测试中
 
 // ignore
@@ -47,7 +47,7 @@ import { cheerio, Crypto, Encrypt, JSONbig } from '../core/uz3lib.js'
 // ignore
 
 const appConfig = {
-    _webSite: 'http://192.168.1.55:5757/api/人人影视[优]',
+    _webSite: 'https://catbox.n13.club/18/人人影视.php',
     /**
      * 网站主页，uz 调用每个函数前都会进行赋值操作
      * 如果不想被改变 请自定义一个变量
@@ -109,12 +109,8 @@ async function getClassList(args) {
     try {
         const ret = await fetch()
         backData.data = ret.class
-        _filter = ret.filters
+        
 
-        for (let index = 0; index < backData.data.length; index++) {
-            const element = backData.data[index]
-            element.hasSubclass = ret.filters[element.type_id]?.length > 0
-        }
     } catch (error) {
         backData.error = error.toString()
     }
@@ -126,37 +122,7 @@ async function getClassList(args) {
  * @param {UZArgs} args
  * @returns {@Promise<JSON.stringify(new RepVideoSubclassList())>}
  */
-async function getSubclassList(args) {
-    var backData = new RepVideoSubclassList()
-    try {
-        let filterList = _filter[args.url] ?? []
 
-        let filterTitles = []
-        for (let i = 0; i < filterList.length; i++) {
-            const elementT = filterList[i]
-
-            let title = new FilterTitle()
-            title.name = elementT.name
-            dlog(elementT.name)
-            title.list = []
-
-            for (let j = 0; j < elementT.value.length; j++) {
-                const elementL = elementT.value[j]
-                var filterLab = new FilterLabel()
-                filterLab.name = elementL.n
-                filterLab.id = elementL.v
-                filterLab.key = elementT.key
-                title.list.push(filterLab)
-            }
-            filterTitles.push(title)
-        }
-
-        backData.data = { filter: filterTitles }
-    } catch (error) {
-        backData.error = error.toString()
-    }
-    return JSON.stringify(backData)
-}
 
 /**
  * 获取分类视频列表
@@ -166,11 +132,7 @@ async function getSubclassList(args) {
 async function getVideoList(args) {
     var backData = new RepVideoList()
     try {
-        const ret = await fetch({
-            ac: 'list',
-            t: args.url,
-            pg: args.page,
-        })
+        const ret = await fetch()
         backData.data = ret.list
     } catch (error) {
         backData.error = error.toString()
@@ -183,30 +145,6 @@ async function getVideoList(args) {
  * @param {UZSubclassVideoListArgs} args
  * @returns {@Promise<JSON.stringify(new RepVideoList())>}
  */
-async function getSubclassVideoList(args) {
-    var backData = new RepVideoList()
-    try {
-        let filterMap = args.filter.reduce((acc, curr) => {
-            acc[curr.key] = curr.id
-            return acc
-        }, {})
-        filterMap['type_id'] = args.mainClassId
-        filterMap = JSON.stringify(filterMap)
-        dlog('   filterMap   ', filterMap)
-        filterMap = base64Encode(filterMap)
-
-        const ret = await fetch({
-            ac: 'list',
-            t: args.url,
-            pg: args.page,
-            ext: filterMap,
-        })
-        backData.data = ret.list
-    } catch (error) {
-        backData.error = error.toString()
-    }
-    return JSON.stringify(backData)
-}
 
 /**
  * 获取视频详情
@@ -215,11 +153,17 @@ async function getSubclassVideoList(args) {
  */
 async function getVideoDetail(args) {
     var backData = new RepVideoDetail()
+    
+    UZUtils.debugLog("获取视频详情："
+   + args.url)
     try {
         const ret = await fetch({
             ac: 'detail',
             ids: args.url,
         })
+        
+        
+        
         if (ret.list && ret.list.length > 0) {
             backData.data = ret.list[0]
         }
