@@ -1,4 +1,4 @@
-//@name:影探影视[优]-开发测试中
+//@name:影探影视[优]
 //@version:1
 //@webSite:https://catbox.n13.club/18/影探影视.php
 //@remark:开发测试中
@@ -132,7 +132,12 @@ async function getClassList(args) {
 async function getVideoList(args) {
     var backData = new RepVideoList()
     try {
-        const ret = await fetch()
+        const ret = await fetch({
+           ac: "detail",
+           t: args.url,
+           pg: args.page
+         
+        })
         backData.data = ret.list
     } catch (error) {
         backData.error = error.toString()
